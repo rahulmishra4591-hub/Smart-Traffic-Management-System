@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Traffic Control Center</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0a0d14; --surface:#111827; --card:#1a2235;
+  --border:#1f2d45; --text:#e2e8f0; --muted:#64748b;
+  --accent:#3b82f6; --green:#22c55e; --red:#ef4444; --yellow:#f59e0b;
+}
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; min-height:100vh; }
+
+header {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:0 24px; height:56px; display:flex; align-items:center;
+  justify-content:space-between; position:sticky; top:0; z-index:100;
+}
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-text { font-size:0.95rem; font-weight:700; letter-spacing:1px; }
+.logo-sub  { font-size:0.62rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+.header-right { display:flex; align-items:center; gap:16px; }
+.live-badge {
+  display:flex; align-items:center; gap:6px;
+  background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3);
+  border-radius:20px; padding:4px 12px; font-size:0.72rem; color:var(--green);
+}
+.live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.clock { font-size:0.82rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+nav { background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; display:flex; }
+.nav-tab {
+  padding:14px 20px; font-size:0.8rem; color:var(--muted); cursor:pointer;
+  border-bottom:2px solid transparent; transition:all 0.2s; display:flex; align-items:center; gap:7px;
+}
+.nav-tab:hover { color:var(--text); }
+.nav-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.page { display:none; padding:20px 24px; }
+.page.active { display:block; }
+
+.emergency-banner {
+  display:none; background:linear-gradient(90deg,#7f1d1d,#991b1b);
+  border:1px solid #ef4444; border-radius:10px; padding:12px 20px;
+  margin-bottom:18px; align-items:center; gap:12px;
+}
+.emergency-banner.show { display:flex; }
+.emergency-text { font-weight:700; color:#fca5a5; font-size:0.9rem; }
+.emergency-sub  { font-size:0.75rem; color:#f87171; }
+
+#health-banner {
+  display:none; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3);
+  border-radius:10px; padding:10px 16px; margin-bottom:16px; font-size:0.8rem; color:#fbbf24;
+}
+
+.live-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.cam-card { background:var(--card); border-radius:14px; border:2px solid var(--border); overflow:hidden; transition:border-color 0.4s,box-shadow 0.4s; }
+.cam-card.state-green { border-color:var(--green); box-shadow:0 0 20px rgba(34,197,94,0.2); }
+.cam-card.state-red   { border-color:#2d1f1f; }
+.cam-card.state-emergency { border-color:var(--red); box-shadow:0 0 25px rgba(239,68,68,0.4); animation:epulse 0.8s infinite; }
+@keyframes epulse { 0%,100%{box-shadow:0 0 25px rgba(239,68,68,0.4)} 50%{box-shadow:0 0 40px rgba(239,68,68,0.7)} }
+
+.cam-video-wrap { position:relative; background:#000; }
+.cam-video { width:100%; height:185px; object-fit:cover; display:block; }
+.cam-label { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.7); border-radius:6px; padding:3px 10px; font-size:0.7rem; font-weight:700; letter-spacing:2px; color:#fff; }
+.manual-badge { position:absolute; top:10px; right:10px; background:rgba(59,130,246,0.8); border-radius:6px; padding:2px 8px; font-size:0.62rem; color:#fff; display:none; }
+
+.cam-body { padding:14px; }
+.cam-top  { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+
+.traffic-light { display:flex; flex-direction:column; background:#0a0d14; border-radius:10px; padding:6px; gap:5px; border:1px solid var(--border); }
+.tl-bulb { width:18px; height:18px; border-radius:50%; opacity:0.15; transition:opacity 0.3s,box-shadow 0.3s; }
+.tl-bulb.on-red    { background:var(--red);    opacity:1; box-shadow:0 0 8px var(--red); }
+.tl-bulb.on-yellow { background:var(--yellow); opacity:1; box-shadow:0 0 8px var(--yellow); }
+.tl-bulb.on-green  { background:var(--green);  opacity:1; box-shadow:0 0 8px var(--green); }
+
+.signal-info  { flex:1; margin-left:14px; }
+.signal-state { font-size:1.1rem; font-weight:800; margin-bottom:2px; }
+.signal-state.green { color:var(--green); }
+.signal-state.red   { color:var(--red); }
+.countdown-main  { font-size:2rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; margin-bottom:2px; }
+.countdown-label { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+.stat-box { background:var(--bg); border-radius:8px; padding:8px; text-align:center; }
+.stat-box-val { font-size:1rem; font-weight:700; }
+.stat-box-lbl { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+
+.cong-row   { margin-bottom:6px; }
+.cong-top   { display:flex; justify-content:space-between; font-size:0.68rem; color:var(--muted); margin-bottom:4px; }
+.cong-track { background:var(--bg); border-radius:4px; height:6px; overflow:hidden; }
+.cong-fill  { height:100%; border-radius:4px; transition:width 0.6s,background 0.6s; }
+.wait-row   { font-size:0.72rem; color:var(--muted); display:flex; justify-content:space-between; }
+.wait-val   { color:var(--yellow); font-weight:600; font-variant-numeric:tabular-nums; }
+
+.controls-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.ctrl-card { background:var(--card); border-radius:14px; border:1px solid var(--border); padding:18px; }
+.ctrl-card h3 { font-size:0.72rem; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:14px; }
+
+.timing-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.timing-dir { font-size:0.78rem; font-weight:600; width:50px; text-transform:capitalize; }
+.timing-slider { flex:1; -webkit-appearance:none; height:4px; border-radius:4px; background:var(--border); outline:none; }
+.timing-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; }
+.timing-val { font-size:0.78rem; color:var(--accent); width:35px; text-align:right; font-variant-numeric:tabular-nums; }
+
+.btn-row { display:flex; gap:8px; margin-top:6px; }
+.apply-btn { flex:1; padding:9px; border-radius:8px; border:none; background:var(--accent); color:#fff; font-size:0.8rem; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
+.apply-btn:hover { opacity:0.85; }
+.reset-btn { padding:9px 14px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.8rem; cursor:pointer; transition:all 0.2s; }
+.reset-btn:hover { background:var(--card); color:var(--text); }
+.ctrl-feedback { font-size:0.72rem; color:var(--green); margin-top:6px; min-height:18px; text-align:center; }
+
+.emergency-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.emergency-btn { padding:14px 10px; border-radius:10px; border:2px solid #7f1d1d; background:rgba(239,68,68,0.08); color:#fca5a5; font-size:0.8rem; font-weight:700; cursor:pointer; text-align:center; transition:all 0.2s; text-transform:uppercase; letter-spacing:1px; }
+.emergency-btn:hover { background:rgba(239,68,68,0.2); border-color:var(--red); }
+.emergency-btn.active-emergency { background:rgba(239,68,68,0.3); border-color:var(--red); box-shadow:0 0 14px rgba(239,68,68,0.4); animation:epulse 0.8s infinite; }
+.clear-btn { width:100%; padding:9px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.78rem; cursor:pointer; margin-top:10px; transition:all 0.2s; }
+.clear-btn:hover { background:var(--card); color:var(--text); }
+
+.analytics-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+.analytics-header h2 { font-size:1rem; font-weight:700; }
+.time-filters { display:flex; gap:6px; flex-wrap:wrap; }
+.time-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:all 0.2s; }
+.time-btn:hover { color:var(--text); border-color:var(--accent); }
+.time-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+.summary-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+.summary-box { background:var(--card); border-radius:12px; border:1px solid var(--border); padding:14px; text-align:center; }
+.summary-box-val { font-size:1.4rem; font-weight:800; color:var(--accent); }
+.summary-box-lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+
+.analytics-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.analytics-card { background:var(--card); border-radius:14px; border:1px solid var(--border); padding:18px; }
+.analytics-card h3 { font-size:0.72rem; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:14px; }
+
+.dir-stat-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.dir-stat-row:last-child { border-bottom:none; }
+.dir-name      { font-size:0.78rem; font-weight:600; width:55px; text-transform:capitalize; }
+.dir-bar-wrap  { flex:1; }
+.dir-bar-track { background:var(--bg); border-radius:4px; height:6px; }
+.dir-bar-fill  { height:100%; border-radius:4px; transition:width 0.6s; }
+.dir-bar-val   { font-size:0.72rem; width:45px; text-align:right; font-variant-numeric:tabular-nums; }
+
+.peak-hours { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.peak-chip  { font-size:0.68rem; padding:2px 8px; border-radius:20px; }
+
+.no-data { color:var(--muted); font-size:0.85rem; text-align:center; padding:40px; }
+.loading  { color:var(--muted); font-size:0.82rem; text-align:center; padding:30px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span style="font-size:1.3rem">🚦</span>
+    <div>
+      <div class="logo-text">Traffic Control Center</div>
+      <div class="logo-sub">Smart Signal Management</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div><span id="conn-label">Connecting</span></div>
+    <div class="clock" id="clock"></div>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-tab active" onclick="showTab('live')"      id="tab-live">📹 Live Monitor</div>
+  <div class="nav-tab"        onclick="showTab('control')"   id="tab-control">🎛️ Controls</div>
+  <div class="nav-tab"        onclick="showTab('analytics')" id="tab-analytics">📊 Analytics</div>
+</nav>
+
+<div class="page active" id="page-live">
+  <div class="emergency-banner" id="emergency-banner">
+    <span style="font-size:1.4rem">🚨</span>
+    <div>
+      <div class="emergency-text">EMERGENCY OVERRIDE ACTIVE</div>
+      <div class="emergency-sub" id="emergency-sub">—</div>
+    </div>
+  </div>
+
+  <div id="health-banner">⚠️ <span id="health-text"></span></div>
+
+  <div class="live-grid" id="live-grid"></div>
+
+  <div style="margin-top:20px">
+    <h3 style="font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:12px">
+      📈 Live Congestion Trend (last 20 readings)
+    </h3>
+    <div class="analytics-card" style="padding:18px">
+      <svg id="trend-svg" viewBox="0 0 400 120" style="width:100%;height:140px"></svg>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:#60a5fa"><span style="width:10px;height:10px;border-radius:50%;background:#3b82f6"></span>North</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:#a78bfa"><span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6"></span>South</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:#4ade80"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e"></span>East</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:#fbbf24"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b"></span>West</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-control">
+  <div class="controls-grid">
+    <div class="ctrl-card">
+      <h3>⏱ Manual Signal Timing</h3>
+      <p style="font-size:0.73rem;color:var(--muted);margin-bottom:12px">
+        Set a fixed green time per direction. <strong style="color:var(--text)">Reset to Auto</strong> hands control back to the congestion-based algorithm.
+      </p>
+      <div id="timing-rows"></div>
+      <div class="btn-row">
+        <button class="apply-btn" onclick="applyOverrides()">Apply Timings</button>
+        <button class="reset-btn" onclick="resetToAuto()">↺ Reset to Auto</button>
+      </div>
+      <div class="ctrl-feedback" id="timing-feedback"></div>
+    </div>
+
+    <div class="ctrl-card">
+      <h3>🚨 Emergency Override</h3>
+      <p style="font-size:0.73rem;color:var(--muted);margin-bottom:12px">
+        Gives full green to one direction immediately. All others go red until cleared.
+      </p>
+      <div class="emergency-grid" id="emergency-btns"></div>
+      <button class="clear-btn" onclick="clearEmergency()">✕ Clear Emergency</button>
+      <div class="ctrl-feedback" id="emergency-feedback"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-analytics">
+  <div class="analytics-header">
+    <h2>Traffic Analytics</h2>
+    <div class="time-filters">
+      <button class="time-btn active" onclick="loadAnalytics('hour',this)">Last Hour</button>
+      <button class="time-btn"        onclick="loadAnalytics('today',this)">Today</button>
+      <button class="time-btn"        onclick="loadAnalytics('yesterday',this)">Yesterday</button>
+      <button class="time-btn"        onclick="loadAnalytics('week',this)">Last Week</button>
+      <button class="time-btn"        onclick="loadAnalytics('month',this)">Last Month</button>
+      <button class="time-btn"        onclick="loadAnalytics('year',this)">Last Year</button>
+    </div>
+  </div>
+  <div id="analytics-content"><p class="loading">Select a time range above.</p></div>
+</div>
+
+<script>
+const API  = "http://localhost:8000";
+const DIRS = ["north","south","east","west"];
+const DIR_COLORS = { north:"#3b82f6", south:"#8b5cf6", east:"#22c55e", west:"#f59e0b" };
+const MAX_TREND_POINTS = 20;
+
+let timerIntervals = {};
+let localTimers    = {};
+
+function updateClock() {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+setInterval(updateClock,1000); updateClock();
+
+function toAMPM(hour) {
+  if (hour === 0)  return "12AM";
+  if (hour < 12)   return `${hour}AM`;
+  if (hour === 12) return "12PM";
+  return `${hour-12}PM`;
+}
+
+function showTab(name) {
+  document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById(`tab-${name}`).classList.add("active");
+  document.getElementById(`page-${name}`).classList.add("active");
+  if (name==="analytics") loadAnalytics("hour", document.querySelector(".time-btn.active"));
+}
+
+const grid = document.getElementById("live-grid");
+DIRS.forEach(d => {
+  grid.innerHTML += `
+  <div class="cam-card" id="card-${d}">
+    <div class="cam-video-wrap">
+      <img class="cam-video" src="${API}/video/${d}" alt="${d}">
+      <div class="cam-label">${d.toUpperCase()}</div>
+      <div class="manual-badge" id="manual-badge-${d}">MANUAL</div>
+    </div>
+    <div class="cam-body">
+      <div class="cam-top">
+        <div class="traffic-light">
+          <div class="tl-bulb" id="tl-red-${d}"></div>
+          <div class="tl-bulb" id="tl-yellow-${d}"></div>
+          <div class="tl-bulb" id="tl-green-${d}"></div>
+        </div>
+        <div class="signal-info">
+          <div class="signal-state"  id="state-${d}">--</div>
+          <div class="countdown-main"  id="cd-${d}">--</div>
+          <div class="countdown-label" id="cd-lbl-${d}">waiting</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-box-val" id="inc-${d}">0</div><div class="stat-box-lbl">Incoming</div></div>
+        <div class="stat-box"><div class="stat-box-val" id="wgt-${d}">0.0</div><div class="stat-box-lbl">Weight</div></div>
+        <div class="stat-box"><div class="stat-box-val" id="score-${d}">0.00</div><div class="stat-box-lbl">Congestion</div></div>
+      </div>
+      <div class="cong-row">
+        <div class="cong-top"><span>Congestion Level</span><span id="score-pct-${d}">0%</span></div>
+        <div class="cong-track"><div class="cong-fill" id="cong-bar-${d}" style="width:0%"></div></div>
+      </div>
+      <div class="wait-row"><span>Next green in</span><span class="wait-val" id="wait-${d}">--</span></div>
+    </div>
+  </div>`;
+});
+
+const timingRows = document.getElementById("timing-rows");
+DIRS.forEach(d => {
+  timingRows.innerHTML += `
+  <div class="timing-row">
+    <div class="timing-dir">${d}</div>
+    <input type="range" class="timing-slider" id="slider-${d}" min="10" max="120" value="30"
+           oninput="document.getElementById('slval-${d}').textContent=this.value+'s'">
+    <span class="timing-val" id="slval-${d}">30s</span>
+  </div>`;
+});
+
+const emergBtns = document.getElementById("emergency-btns");
+DIRS.forEach(d => {
+  emergBtns.innerHTML += `<button class="emergency-btn" id="ebtn-${d}" onclick="declareEmergency('${d}')">🚨 ${d.toUpperCase()}</button>`;
+});
+
+function setLight(d, state) {
+  ["red","yellow","green"].forEach(c => document.getElementById(`tl-${c}-${d}`).className = "tl-bulb");
+  if (state==="green")  document.getElementById(`tl-green-${d}`).classList.add("on-green");
+  if (state==="red")    document.getElementById(`tl-red-${d}`).classList.add("on-red");
+}
+
+function congColor(s) {
+  return s < 0.4 ? "var(--green)" : s < 0.7 ? "var(--yellow)" : "var(--red)";
+}
+
+function startCountdown(d, seconds, isGreen) {
+  if (timerIntervals[d]) clearInterval(timerIntervals[d]);
+  let rem = seconds;
+  function tick() {
+    if (rem <= 0) { clearInterval(timerIntervals[d]); return; }
+    const m = Math.floor(rem/60), s = rem%60;
+    const fmt = m > 0 ? `${m}:${String(s).padStart(2,"0")}` : `${s}s`;
+    document.getElementById(`cd-${d}`).textContent     = fmt;
+    document.getElementById(`cd-lbl-${d}`).textContent = isGreen ? "remaining" : "until green";
+    document.getElementById(`wait-${d}`).textContent   = isGreen ? "--" : fmt;
+    rem--;
+  }
+  tick();
+  timerIntervals[d] = setInterval(tick, 1000);
+}
+
+function connect() {
+  const ws = new WebSocket(`ws://localhost:8000/ws/signals`);
+
+  ws.onopen = () => { document.getElementById("conn-label").textContent = "Live"; };
+
+  ws.onmessage = (e) => {
+    const { signals, congestion, emergency, trends, fallback_mode, failed_cameras } = JSON.parse(e.data);
+
+    if (trends) renderTrendChart(trends);
+
+    const healthBanner = document.getElementById("health-banner");
+    if (failed_cameras && failed_cameras.length > 0) {
+      healthBanner.style.display = "block";
+      document.getElementById("health-text").textContent =
+        `Camera issue detected: ${failed_cameras.join(", ").toUpperCase()} — using historical data (${fallback_mode})`;
+    } else {
+      healthBanner.style.display = "none";
+    }
+
+    const banner = document.getElementById("emergency-banner");
+    if (emergency) {
+      banner.classList.add("show");
+      document.getElementById("emergency-sub").textContent = `${emergency.toUpperCase()} has priority — all others RED`;
+    } else {
+      banner.classList.remove("show");
+    }
+
+    DIRS.forEach(d => {
+      const sig   = signals[d]    || {};
+      const cong  = congestion[d] || {};
+      const score   = cong.congestion_score || 0;
+      const isGreen = sig.state === "green";
+      const isEmerg = sig.reason === "emergency";
+      const isManual= sig.reason === "manual";
+
+      document.getElementById(`card-${d}`).className = `cam-card state-${isEmerg ? "emergency" : (sig.state||"red")}`;
+      document.getElementById(`manual-badge-${d}`).style.display = isManual ? "block" : "none";
+      setLight(d, isGreen || isEmerg ? "green" : "red");
+
+      const stateEl = document.getElementById(`state-${d}`);
+      stateEl.textContent = isEmerg ? "🚨 EMERGENCY" : isManual ? "🔵 MANUAL" : isGreen ? "🟢 GREEN" : "🔴 RED";
+      stateEl.className   = `signal-state ${isGreen||isEmerg ? "green" : "red"}`;
+
+      const newTime = sig.green_time || 0;
+      if (!localTimers[d] || Math.abs(localTimers[d] - newTime) > 3) {
+        localTimers[d] = newTime;
+        startCountdown(d, newTime, isGreen || isEmerg);
+      }
+
+      document.getElementById(`inc-${d}`).textContent       = cong.incoming || 0;
+      document.getElementById(`wgt-${d}`).textContent       = (cong.weighted||0).toFixed(1);
+      document.getElementById(`score-${d}`).textContent     = score.toFixed(2);
+      document.getElementById(`score-pct-${d}`).textContent = `${Math.round(score*100)}%`;
+
+      const bar = document.getElementById(`cong-bar-${d}`);
+      bar.style.width      = `${score*100}%`;
+      bar.style.background = congColor(score);
+
+      document.getElementById(`ebtn-${d}`)?.classList.toggle("active-emergency", emergency===d);
+    });
+  };
+
+  ws.onclose = () => {
+    document.getElementById("conn-label").textContent = "Reconnecting...";
+    setTimeout(connect, 3000);
+  };
+}
+
+function renderTrendChart(trends) {
+  const svg = document.getElementById("trend-svg");
+  if (!svg) return;
+  const w = 400, h = 120, pad = 8;
+  let paths = "", grid = "";
+
+  DIRS.forEach(d => {
+    const data = trends[d] || [];
+    if (data.length < 2) return;
+    const stepX = (w - pad*2) / (MAX_TREND_POINTS - 1);
+    const points = data.map((v,i) => `${pad + i*stepX},${h - pad - v*(h - pad*2)}`).join(" ");
+    paths += `<polyline points="${points}" fill="none" stroke="${DIR_COLORS[d]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;
+  });
+
+  for (let i = 0; i <= 4; i++) {
+    const y = pad + i * (h - pad*2) / 4;
+    grid += `<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="#1f2d45" stroke-width="1"/>`;
+  }
+  svg.innerHTML = grid + paths;
+}
+
+async function applyOverrides() {
+  for (const d of DIRS) {
+    const val = document.getElementById(`slider-${d}`).value;
+    await fetch(`${API}/api/override?direction=${d}&green_time=${val}`, {method:"POST"});
+  }
+  const fb = document.getElementById("timing-feedback");
+  fb.textContent = "✅ Manual timings applied";
+  setTimeout(()=>fb.textContent="", 3000);
+}
+
+async function resetToAuto() {
+  await fetch(`${API}/api/override/reset`, {method:"POST"});
+  const fb = document.getElementById("timing-feedback");
+  fb.style.color = "#f59e0b";
+  fb.textContent = "↺ Reset to automatic congestion-based timing";
+  setTimeout(()=>{ fb.textContent=""; fb.style.color="var(--green)"; }, 3000);
+}
+
+async function declareEmergency(direction) {
+  await fetch(`${API}/api/emergency?direction=${direction}`, {method:"POST"});
+  document.getElementById("emergency-feedback").textContent = `🚨 Emergency declared — ${direction.toUpperCase()} has priority`;
+}
+
+async function clearEmergency() {
+  await fetch(`${API}/api/emergency`, {method:"POST"});
+  const fb = document.getElementById("emergency-feedback");
+  fb.textContent = "✅ Emergency cleared — back to normal";
+  setTimeout(()=>fb.textContent="", 3000);
+}
+
+async function loadAnalytics(period, btnEl) {
+  document.querySelectorAll(".time-btn").forEach(b=>b.classList.remove("active"));
+  if (btnEl) btnEl.classList.add("active");
+  const el = document.getElementById("analytics-content");
+  el.innerHTML = `<p class="loading">Loading ${period} data...</p>`;
+
+  try {
+    const res  = await fetch(`${API}/api/analytics?period=${period}`);
+    const data = await res.json();
+
+    if (!data.directions || !Object.keys(data.directions).length) {
+      el.innerHTML = `<p class="no-data">No data for this period yet.</p>`;
+      return;
+    }
+
+    const dirs    = data.directions;
+    const maxCong = Math.max(...Object.values(dirs).map(d=>d.avg_congestion||0), 0.01);
+    const maxInc  = Math.max(...Object.values(dirs).map(d=>d.avg_incoming||0),   0.01);
+    const maxGT   = Math.max(...Object.values(dirs).map(d=>d.avg_green_time||0), 0.01);
+
+    const totalVeh    = Object.values(dirs).reduce((s,d)=>s+(d.total_incoming||0),0);
+    const totalWeight = Object.values(dirs).reduce((s,d)=>s+(d.total_weight||0),0);
+    const avgCong     = (Object.values(dirs).reduce((s,d)=>s+(d.avg_congestion||0),0)/4).toFixed(2);
+
+    const barRow = (val, max, color, fmt) => {
+      const pct = (val/max*100).toFixed(0);
+      return `<div class="dir-bar-wrap"><div class="dir-bar-track"><div class="dir-bar-fill" style="width:${pct}%;background:${color}"></div></div></div><div class="dir-bar-val" style="color:${color}">${fmt}</div>`;
+    };
+
+    el.innerHTML = `
+    <div class="summary-stats">
+      <div class="summary-box"><div class="summary-box-val">${totalVeh.toLocaleString()}</div><div class="summary-box-lbl">Total Vehicles</div></div>
+      <div class="summary-box"><div class="summary-box-val">${totalWeight.toFixed(0)}</div><div class="summary-box-lbl">Total Weight</div></div>
+      <div class="summary-box"><div class="summary-box-val">${avgCong}</div><div class="summary-box-lbl">Avg Congestion</div></div>
+    </div>
+    <div class="analytics-grid">
+      <div class="analytics-card"><h3>Avg Congestion by Direction</h3>
+        ${DIRS.map(d=>`<div class="dir-stat-row"><div class="dir-name">${d}</div>${barRow(dirs[d]?.avg_congestion||0, maxCong, DIR_COLORS[d], (dirs[d]?.avg_congestion||0).toFixed(2))}</div>`).join("")}
+      </div>
+      <div class="analytics-card"><h3>Avg Incoming Vehicles</h3>
+        ${DIRS.map(d=>`<div class="dir-stat-row"><div class="dir-name">${d}</div>${barRow(dirs[d]?.avg_incoming||0, maxInc, DIR_COLORS[d], (dirs[d]?.avg_incoming||0).toFixed(1))}</div>`).join("")}
+      </div>
+      <div class="analytics-card"><h3>Avg Green Time Allocated</h3>
+        ${DIRS.map(d=>`<div class="dir-stat-row"><div class="dir-name">${d}</div>${barRow(dirs[d]?.avg_green_time||0, maxGT, DIR_COLORS[d], (dirs[d]?.avg_green_time||0).toFixed(0)+"s")}</div>`).join("")}
+      </div>
+      <div class="analytics-card"><h3>Peak Hours per Direction</h3>
+        ${DIRS.map(d=>{
+          const chips = (dirs[d]?.peak_hours||[]).map(p=>`<span class="peak-chip" style="background:${DIR_COLORS[d]}22;color:${DIR_COLORS[d]}">${toAMPM(p.hour)}</span>`).join("");
+          return `<div class="dir-stat-row" style="flex-wrap:wrap;gap:6px"><div class="dir-name">${d}</div><div class="peak-hours">${chips||'<span style="color:var(--muted);font-size:0.7rem">No data</span>'}</div></div>`;
+        }).join("")}
+      </div>
+    </div>`;
+  } catch(err) {
+    el.innerHTML = `<p class="no-data">Could not load analytics. Is the server running?</p>`;
+  }
+}
+
+connect();
+loadAnalytics("hour", document.querySelector(".time-btn.active"));
+</script>
+</body>
+</html>
