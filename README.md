@@ -21,8 +21,20 @@ WebSocket — no real intersection hardware required to try it.
 
 ## Demo
 
+**Live Monitor in action**
+
 ![Demo 1](visuals/demo1.gif)
+
+<br>
+
+**Manual & emergency controls**
+
 ![Demo 2](visuals/demo2.gif)
+
+<br>
+
+**Analytics tab**
+
 ![Demo 3](visuals/demo3.gif)
 
 ## Features
@@ -132,3 +144,4 @@ without sacrificing measurement accuracy.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
