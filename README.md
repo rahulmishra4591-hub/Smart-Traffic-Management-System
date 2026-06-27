@@ -15,10 +15,13 @@ WebSocket — no real intersection hardware required to try it.
 
 ## Demo
 
-> Add a screen recording or GIF of the dashboard here before sharing the repo —
-> a 15-second clip of the Live Monitor tab is the single most convincing thing
-> in this README.
+## Screenshots
 
+| Live Monitor | Controls | Analytics |
+|---|---|---|
+| ![Live Monitor](visuals/live-monitor.png) | ![Controls](visuals/controls.png) | ![Analytics](visuals/analytics.png) |
+
+![Demo](visuals/demo.gif)
 ## Features
 
 - **Multi-camera coordination** — four independent video feeds (or RTSP
