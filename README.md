@@ -21,22 +21,21 @@ WebSocket — no real intersection hardware required to try it.
 
 ## Demo
 
-**Live Monitor in action**
+**Emergency controls**
 
 ![Demo 1](visuals/demo1.gif)
 
 <br>
 
-**Manual & emergency controls**
+**Manual controls**
 
 ![Demo 2](visuals/demo2.gif)
 
 <br>
 
-**Analytics tab**
+**Live Monitor in action**
 
 ![Demo 3](visuals/demo3.gif)
-
 ## Features
 
 - **Multi-camera coordination** — four independent video feeds (or RTSP
@@ -144,5 +143,3 @@ without sacrificing measurement accuracy.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-
