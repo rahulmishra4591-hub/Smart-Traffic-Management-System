@@ -13,15 +13,18 @@ WebSocket — no real intersection hardware required to try it.
 
 ---
 
-## Demo
-
 ## Screenshots
 
 | Live Monitor | Controls | Analytics |
 |---|---|---|
 | ![Live Monitor](visuals/live-monitor.png) | ![Controls](visuals/controls.png) | ![Analytics](visuals/analytics.png) |
 
-![Demo](visuals/demo.gif)
+## Demo
+
+![Demo 1](visuals/demo1.gif)
+![Demo 2](visuals/demo2.gif)
+![Demo 3](visuals/demo3.gif)
+
 ## Features
 
 - **Multi-camera coordination** — four independent video feeds (or RTSP
